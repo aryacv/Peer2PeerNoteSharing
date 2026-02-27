@@ -19,6 +19,16 @@
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .neon-border {
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+        }
+        #note-gallery::-webkit-scrollbar {
+            width: 4px;
+        }
+        #note-gallery::-webkit-scrollbar-thumb {
+            background: rgba(34, 211, 238, 0.3);
+            border-radius: 10px;
+        }
     </style>
 </head>
 
@@ -26,172 +36,176 @@
 
 <div class="max-w-4xl mx-auto px-6 py-12">
 
-    <h1 class="text-4xl font-bold text-center text-cyan-400 mb-6">
-        Peer2Peer Notes
-    </h1>
+    <header class="text-center mb-10">
+        <h1 class="text-5xl font-black text-cyan-400 italic">Peer2Peer</h1>
+        <p class="text-slate-500 text-xs mt-2">Decentralized Note Marketplace</p>
+    </header>
 
-    <div class="glass p-6 rounded-2xl">
+    <div class="glass rounded-3xl p-8 shadow-2xl neon-border">
 
-        <!-- ID Section -->
-        <div class="mb-6">
-            <p class="text-xs text-gray-400">Your ID</p>
-            <h2 id="my-id" class="text-xl text-cyan-400">Loading...</h2>
+        <!-- Connection -->
+        <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+            <div>
+                <p class="text-xs text-slate-400">Your ID</p>
+                <h2 id="my-id" class="text-xl text-cyan-400">Loading...</h2>
+            </div>
+
+            <div class="flex gap-2">
+                <input id="receiver-id" type="text" placeholder="Enter Peer ID"
+                       class="bg-slate-900 px-3 py-2 rounded-lg text-sm">
+                <button onclick="connectToPeer()"
+                        class="bg-cyan-500 px-4 py-2 rounded-lg text-sm">
+                    Connect
+                </button>
+            </div>
         </div>
 
-        <!-- Connect -->
-        <div class="flex gap-2 mb-6">
-            <input id="receiver-id" placeholder="Enter Peer ID"
-                class="bg-gray-900 px-3 py-2 rounded w-full text-sm">
-            <button onclick="connectToPeer()"
-                class="bg-cyan-500 px-4 rounded">Connect</button>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-6">
+        <div class="grid md:grid-cols-3 gap-6">
 
             <!-- My Files -->
             <div>
-                <h3 class="text-sm mb-2">My Notes</h3>
+                <h3 class="text-xs mb-2">My Notes</h3>
+
                 <input type="file" id="file-input" class="hidden">
+
                 <button onclick="document.getElementById('file-input').click()"
-                    class="w-full border border-dashed p-2 mb-3">
-                    + Add File
+                        class="w-full border border-dashed p-3 text-xs rounded-lg mb-3">
+                    + Add Note
                 </button>
 
                 <div id="my-files-list"></div>
             </div>
 
             <!-- Marketplace -->
-            <div>
-                <h3 class="text-sm mb-2">Peer Files</h3>
-                <div id="note-gallery"></div>
+            <div class="md:col-span-2">
+
+                <input id="search-bar" onkeyup="searchNotes()"
+                       placeholder="Search files..."
+                       class="w-full mb-3 bg-slate-900 px-3 py-2 text-sm rounded-lg">
+
+                <div id="note-gallery"
+                     class="grid grid-cols-2 gap-3 h-64 overflow-y-auto">
+                </div>
+
             </div>
 
         </div>
+
     </div>
 </div>
 
 <script>
-
 const peer = new Peer();
-let conn = null;
-let myFiles = [];
+let activeConn = null;
+let mySharedNotes = [];
 let remoteFiles = [];
 
-// My ID
+// Show ID
 peer.on('open', id => {
     document.getElementById('my-id').innerText = id;
 });
 
 // Incoming connection
-peer.on('connection', connection => {
-    conn = connection;
+peer.on('connection', conn => {
+    activeConn = conn;
     setupConnection();
 });
 
 // Connect manually
 function connectToPeer() {
     const id = document.getElementById('receiver-id').value;
-    if (!id) return alert("Enter ID");
-    conn = peer.connect(id, { reliable: true });
+    activeConn = peer.connect(id);
     setupConnection();
 }
 
 // Setup connection
 function setupConnection() {
 
-    conn.on('open', () => {
-        console.log("Connected!");
-        sendManifest();
+    activeConn.on('open', () => {
+        broadcastManifest();
     });
 
-    conn.on('data', async data => {
+    activeConn.on('data', async data => {
 
         if (data.type === 'MANIFEST') {
             remoteFiles = data.files;
-            renderFiles(remoteFiles);
+            renderMarketplace(remoteFiles);
         }
 
-        else if (data.type === 'REQUEST') {
-            const fileObj = myFiles.find(f => f.name === data.name);
+        else if (data.type === 'REQUEST_FILE') {
+            const note = mySharedNotes.find(n => n.name === data.fileName);
 
-            if (fileObj) {
-                const buffer = await fileObj.file.arrayBuffer();
+            if (note) {
+                const buffer = await note.file.arrayBuffer();
 
-                conn.send({
-                    type: 'FILE',
-                    name: fileObj.name,
-                    mime: fileObj.file.type,
+                activeConn.send({
+                    type: 'FILE_DATA',
+                    name: note.name,
                     buffer: buffer
                 });
             }
         }
 
-        else if (data.type === 'FILE') {
-            const blob = new Blob([data.buffer], { type: data.mime });
-
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = data.name;
-            a.click();
+        else if (data.type === 'FILE_DATA') {
+            downloadFile(data);
         }
     });
 }
 
-// Add file
-document.getElementById('file-input').onchange = (e) => {
+// Upload file
+document.getElementById('file-input').onchange = e => {
     const file = e.target.files[0];
 
     if (file) {
-        myFiles.push({
+        mySharedNotes.push({
             name: file.name,
             size: (file.size / 1024).toFixed(1) + " KB",
             file: file
         });
 
-        updateMyFiles();
+        updateMyList();
 
-        if (conn && conn.open) sendManifest();
+        if (activeConn && activeConn.open) {
+            broadcastManifest();
+        }
     }
 };
 
 // Update UI
-function updateMyFiles() {
+function updateMyList() {
     const list = document.getElementById('my-files-list');
 
-    list.innerHTML = myFiles.map(f => `
-        <div class="bg-gray-800 p-2 mb-2 rounded flex justify-between">
-            <span>${f.name}</span>
-            <span class="text-xs">${f.size}</span>
+    list.innerHTML = mySharedNotes.map(n => `
+        <div class="bg-black/20 p-2 rounded mb-2 flex justify-between">
+            <span>${n.name}</span>
+            <span>${n.size}</span>
         </div>
     `).join('');
 }
 
 // Send file list
-function sendManifest() {
-    conn.send({
+function broadcastManifest() {
+    activeConn.send({
         type: 'MANIFEST',
-        files: myFiles.map(f => ({
-            name: f.name,
-            size: f.size
+        files: mySharedNotes.map(n => ({
+            name: n.name,
+            size: n.size
         }))
     });
 }
 
-// Render peer files
-function renderFiles(files) {
+// Show marketplace
+function renderMarketplace(files) {
     const gallery = document.getElementById('note-gallery');
 
-    if (files.length === 0) {
-        gallery.innerHTML = "No files available";
-        return;
-    }
-
     gallery.innerHTML = files.map(f => `
-        <div class="bg-gray-800 p-2 mb-2 rounded">
-            <p>${f.name}</p>
-            <p class="text-xs">${f.size}</p>
+        <div class="bg-black/20 p-3 rounded flex flex-col justify-between">
+            <div>
+                <p>${f.name}</p>
+                <small>${f.size}</small>
+            </div>
             <button onclick="requestFile('${f.name}')"
-                class="bg-cyan-500 px-2 py-1 mt-1 text-xs rounded">
+                    class="mt-2 bg-cyan-500 px-2 py-1 rounded text-xs">
                 Download
             </button>
         </div>
@@ -200,16 +214,40 @@ function renderFiles(files) {
 
 // Request file
 function requestFile(name) {
-    if (conn && conn.open) {
-        conn.send({
-            type: 'REQUEST',
-            name: name
-        });
-    } else {
-        alert("Not connected!");
-    }
+    activeConn.send({
+        type: 'REQUEST_FILE',
+        fileName: name
+    });
 }
 
+// Download file
+function downloadFile(data) {
+
+    const blob = new Blob([data.buffer]);
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = data.name;
+
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Search
+function searchNotes() {
+    const query = document.getElementById('search-bar').value.toLowerCase();
+
+    const filtered = remoteFiles.filter(f =>
+        f.name.toLowerCase().includes(query)
+    );
+
+    renderMarketplace(filtered);
+}
 </script>
 
 </body>
