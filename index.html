@@ -4,251 +4,148 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Peer2Peer NoteSharing Marketplace</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-
     <style>
-        body {
-            background: radial-gradient(circle at top right, #0f172a, #1e293b);
-            min-height: 100vh;
-            font-family: 'Inter', sans-serif;
-        }
-        .glass {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .neon-border {
-            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
-        }
-        #note-gallery::-webkit-scrollbar {
-            width: 4px;
-        }
-        #note-gallery::-webkit-scrollbar-thumb {
-            background: rgba(34, 211, 238, 0.3);
-            border-radius: 10px;
-        }
+        body { background: radial-gradient(circle at top right, #0f172a, #1e293b); min-height: 100vh; font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .neon-border { box-shadow: 0 0 15px rgba(34, 211, 238, 0.2); }
     </style>
 </head>
-
 <body class="text-slate-200">
+    <div class="max-w-4xl mx-auto px-6 py-12">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent italic tracking-tighter">Peer2Peer</h1>
+            <p class="text-slate-500 font-medium tracking-widest uppercase text-xs mt-2">Decentralized Note Marketplace</p>
+        </header>
 
-<div class="max-w-4xl mx-auto px-6 py-12">
-
-    <header class="text-center mb-10">
-        <h1 class="text-5xl font-black text-cyan-400 italic">Peer2Peer</h1>
-        <p class="text-slate-500 text-xs mt-2">Decentralized Note Marketplace</p>
-    </header>
-
-    <div class="glass rounded-3xl p-8 shadow-2xl neon-border">
-
-        <!-- Connection -->
-        <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
-            <div>
-                <p class="text-xs text-slate-400">Your ID</p>
-                <h2 id="my-id" class="text-xl text-cyan-400">Loading...</h2>
+        <div class="glass rounded-[2.5rem] p-8 md:p-10 shadow-2xl neon-border">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 bg-black/30 p-6 rounded-3xl border border-white/5">
+                <div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Your Student ID</span>
+                    <h2 id="my-id" class="text-2xl font-mono text-cyan-400 mt-1">Initialising...</h2>
+                </div>
+                <div class="flex gap-2">
+                    <input id="receiver-id" type="text" placeholder="Enter Peer ID..." class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm outline-none focus:border-cyan-500">
+                    <button onclick="connectToPeer()" class="bg-cyan-600 hover:bg-cyan-500 px-6 py-2 rounded-xl font-bold text-sm transition-all">Connect</button>
+                </div>
             </div>
 
-            <div class="flex gap-2">
-                <input id="receiver-id" type="text" placeholder="Enter Peer ID"
-                       class="bg-slate-900 px-3 py-2 rounded-lg text-sm">
-                <button onclick="connectToPeer()"
-                        class="bg-cyan-500 px-4 py-2 rounded-lg text-sm">
-                    Connect
-                </button>
-            </div>
-        </div>
-
-        <div class="grid md:grid-cols-3 gap-6">
-
-            <!-- My Files -->
-            <div>
-                <h3 class="text-xs mb-2">My Notes</h3>
-
-                <input type="file" id="file-input" class="hidden">
-
-                <button onclick="document.getElementById('file-input').click()"
-                        class="w-full border border-dashed p-3 text-xs rounded-lg mb-3">
-                    + Add Note
-                </button>
-
-                <div id="my-files-list"></div>
-            </div>
-
-            <!-- Marketplace -->
-            <div class="md:col-span-2">
-
-                <input id="search-bar" onkeyup="searchNotes()"
-                       placeholder="Search files..."
-                       class="w-full mb-3 bg-slate-900 px-3 py-2 text-sm rounded-lg">
-
-                <div id="note-gallery"
-                     class="grid grid-cols-2 gap-3 h-64 overflow-y-auto">
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="md:col-span-1 space-y-4">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">My Vault (Sharing)</h3>
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-3">
+                        <input type="file" id="file-input" class="hidden">
+                        <button onclick="document.getElementById('file-input').click()" class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-xs text-slate-400 hover:border-cyan-500 hover:text-cyan-400 transition-all">+ Add New Note</button>
+                        <div id="my-files-list" class="space-y-2 text-[11px]">
+                            </div>
+                    </div>
                 </div>
 
+                <div class="md:col-span-2 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Peer Marketplace</h3>
+                        <input type="text" onkeyup="searchNotes(this.value)" placeholder="Search tags..." class="bg-transparent border-b border-slate-700 text-xs px-2 py-1 outline-none focus:border-cyan-500">
+                    </div>
+                    <div id="note-gallery" class="grid grid-cols-1 sm:grid-cols-2 gap-4 h-[300px] overflow-y-auto pr-2">
+                        <div class="col-span-2 flex flex-col items-center justify-center h-full opacity-30">
+                            <span class="text-4xl">📡</span>
+                            <p class="text-xs mt-2">Connect to a peer to see their notes...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-
         </div>
-
     </div>
-</div>
 
-<script>
-const peer = new Peer();
-let activeConn = null;
-let mySharedNotes = [];
-let remoteFiles = [];
+    <script>
+        const peer = new Peer();
+        let activeConn = null;
+        let mySharedNotes = []; // Files added by the user
 
-// Show ID
-peer.on('open', id => {
-    document.getElementById('my-id').innerText = id;
-});
+        peer.on('open', id => document.getElementById('my-id').innerText = id);
 
-// Incoming connection
-peer.on('connection', conn => {
-    activeConn = conn;
-    setupConnection();
-});
+        // 1. Handle incoming connections
+        peer.on('connection', conn => {
+            activeConn = conn;
+            setupConnection();
+        });
 
-// Connect manually
-function connectToPeer() {
-    const id = document.getElementById('receiver-id').value;
-    activeConn = peer.connect(id);
-    setupConnection();
-}
-
-// Setup connection
-function setupConnection() {
-
-    activeConn.on('open', () => {
-        broadcastManifest();
-    });
-
-    activeConn.on('data', async data => {
-
-        if (data.type === 'MANIFEST') {
-            remoteFiles = data.files;
-            renderMarketplace(remoteFiles);
+        // 2. Initiate connection
+        function connectToPeer() {
+            const remoteId = document.getElementById('receiver-id').value;
+            if (!remoteId) return alert("Enter an ID!");
+            activeConn = peer.connect(remoteId);
+            setupConnection();
         }
 
-        else if (data.type === 'REQUEST_FILE') {
-            const note = mySharedNotes.find(n => n.name === data.fileName);
+        function setupConnection() {
+            activeConn.on('open', () => {
+                // When connected, automatically send our file list (metadata) to the peer
+                broadcastManifest();
+            });
 
-            if (note) {
-                const buffer = await note.file.arrayBuffer();
+            activeConn.on('data', data => {
+                if (data.type === 'MANIFEST') {
+                    renderMarketplace(data.files);
+                } else if (data.type === 'FILE_DATA') {
+                    downloadFile(data);
+                }
+            });
+        }
 
-                activeConn.send({
-                    type: 'FILE_DATA',
-                    name: note.name,
-                    buffer: buffer
-                });
+        // 3. File Selection Logic
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const noteObj = { name: file.name, size: (file.size/1024).toFixed(1) + 'KB', fileData: file };
+                mySharedNotes.push(noteObj);
+                updateMyList();
+                if(activeConn) broadcastManifest(); // Update peer if already connected
+            }
+        };
+
+        function updateMyList() {
+            const list = document.getElementById('my-files-list');
+            list.innerHTML = mySharedNotes.map(n => `<div class="bg-black/20 p-2 rounded-lg border border-white/5">📄 ${n.name} <span class="text-cyan-600 block text-[9px]">${n.size}</span></div>`).join('');
+        }
+
+        // 4. Send Metadata (The "Searchable" part)
+        function broadcastManifest() {
+            const metadataOnly = mySharedNotes.map(n => ({ name: n.name, size: n.size }));
+            activeConn.send({ type: 'MANIFEST', files: metadataOnly });
+        }
+
+        // 5. Display Peer's Notes
+        function renderMarketplace(files) {
+            const gallery = document.getElementById('note-gallery');
+            gallery.innerHTML = files.map(f => `
+                <div class="glass p-4 rounded-2xl border border-cyan-500/20 hover:border-cyan-500 transition-all">
+                    <p class="text-sm font-bold text-slate-200 truncate">${f.name}</p>
+                    <p class="text-[10px] text-slate-500 mb-3">${f.size}</p>
+                    <button onclick="requestFile('${f.name}')" class="w-full bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-white py-2 rounded-lg text-[10px] font-bold transition-all">Download Note</button>
+                </div>
+            `).join('');
+        }
+
+        // 6. Transfer the actual file
+        function requestFile(fileName) {
+            alert("Requesting file: " + fileName);
+            // In a full system, you'd send a request. For this demo, we'll auto-send.
+            const note = mySharedNotes.find(n => n.name === fileName);
+            if(note) {
+                activeConn.send({ type: 'FILE_DATA', file: note.fileData, name: note.name });
             }
         }
 
-        else if (data.type === 'FILE_DATA') {
-            downloadFile(data);
+        function downloadFile(data) {
+            const blob = new Blob([data.file]);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.name;
+            a.click();
         }
-    });
-}
-
-// Upload file
-document.getElementById('file-input').onchange = e => {
-    const file = e.target.files[0];
-
-    if (file) {
-        mySharedNotes.push({
-            name: file.name,
-            size: (file.size / 1024).toFixed(1) + " KB",
-            file: file
-        });
-
-        updateMyList();
-
-        if (activeConn && activeConn.open) {
-            broadcastManifest();
-        }
-    }
-};
-
-// Update UI
-function updateMyList() {
-    const list = document.getElementById('my-files-list');
-
-    list.innerHTML = mySharedNotes.map(n => `
-        <div class="bg-black/20 p-2 rounded mb-2 flex justify-between">
-            <span>${n.name}</span>
-            <span>${n.size}</span>
-        </div>
-    `).join('');
-}
-
-// Send file list
-function broadcastManifest() {
-    activeConn.send({
-        type: 'MANIFEST',
-        files: mySharedNotes.map(n => ({
-            name: n.name,
-            size: n.size
-        }))
-    });
-}
-
-// Show marketplace
-function renderMarketplace(files) {
-    const gallery = document.getElementById('note-gallery');
-
-    gallery.innerHTML = files.map(f => `
-        <div class="bg-black/20 p-3 rounded flex flex-col justify-between">
-            <div>
-                <p>${f.name}</p>
-                <small>${f.size}</small>
-            </div>
-            <button onclick="requestFile('${f.name}')"
-                    class="mt-2 bg-cyan-500 px-2 py-1 rounded text-xs">
-                Download
-            </button>
-        </div>
-    `).join('');
-}
-
-// Request file
-function requestFile(name) {
-    activeConn.send({
-        type: 'REQUEST_FILE',
-        fileName: name
-    });
-}
-
-// Download file
-function downloadFile(data) {
-
-    const blob = new Blob([data.buffer]);
-
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = data.name;
-
-    document.body.appendChild(a);
-    a.click();
-
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
-
-// Search
-function searchNotes() {
-    const query = document.getElementById('search-bar').value.toLowerCase();
-
-    const filtered = remoteFiles.filter(f =>
-        f.name.toLowerCase().includes(query)
-    );
-
-    renderMarketplace(filtered);
-}
-</script>
-
+    </script>
 </body>
 </html>
